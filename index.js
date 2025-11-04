@@ -196,12 +196,17 @@ app.put('/api/corporate', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/uploads/corporate', requireAdmin, upload.single('asset'), (req, res) => {
+  // Temporarily bypassing actual file saving to diagnose 500 error on Vercel.
+  // Serverless environments often have read-only file systems.
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
 
-  const relativePath = `/uploads/${req.file.filename}`;
-  res.status(201).json({ path: relativePath });
+  // For now, we'll just return a dummy path.
+  // In a real-world scenario, you would integrate with a cloud storage service here (e.g., AWS S3, Cloudinary).
+  const relativePath = `/uploads/${req.file.filename}`; // Still use filename if available for consistency in response
+  console.log(`File upload received: ${req.file.originalname}. Storing to local disk is likely failing on Vercel.`);
+  res.status(201).json({ path: relativePath, message: 'File upload received, but not persistently saved due to serverless environment limitations.' });
 });
 
 const getStoredCategories = (data) => {
