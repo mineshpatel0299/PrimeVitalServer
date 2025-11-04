@@ -1,0 +1,101 @@
+{
+  "hero": {
+    "title": "Corporate Health Services",
+    "subtitle": "Comprehensive health solutions designed for businesses to promote employee wellness, ensure workplace safety, and improve organizational productivity."
+  },
+  "services": [
+    {
+      "id": "service-1",
+      "title": "Corporate Health Checkups",
+      "description": "Comprehensive health screening programs for employees",
+      "features": [
+        "Customized health packages",
+        "On-site sample collection",
+        "Bulk pricing discounts",
+        "Detailed health reports",
+        "Follow-up consultations"
+      ]
+    },
+    {
+      "id": "service-2",
+      "title": "Occupational Health Services",
+      "description": "Specialized health services for workplace safety and compliance",
+      "features": [
+        "Pre-employment medicals",
+        "Periodic health assessments",
+        "Return-to-work evaluations",
+        "Occupational hazard screening",
+        "Regulatory compliance"
+      ]
+    },
+    {
+      "id": "service-3",
+      "title": "Wellness Programs",
+      "description": "Comprehensive wellness initiatives for employee health",
+      "features": [
+        "Health awareness campaigns",
+        "Nutrition counseling",
+        "Fitness assessments",
+        "Mental health support",
+        "Lifestyle coaching"
+      ]
+    }
+  ],
+  "benefits": [
+    {
+      "id": "benefit-1",
+      "title": "Improved Employee Health",
+      "description": "Regular health checkups lead to early detection and better health outcomes"
+    },
+    {
+      "id": "benefit-2",
+      "title": "Reduced Healthcare Costs",
+      "description": "Preventive care helps reduce long-term healthcare expenses"
+    },
+    {
+      "id": "benefit-3",
+      "title": "Increased Productivity",
+      "description": "Healthy employees are more productive and have fewer sick days"
+    },
+    {
+      "id": "benefit-4",
+      "title": "Better Employee Retention",
+      "description": "Health benefits improve employee satisfaction and loyalty"
+    }
+  ],
+  "process": [
+    {
+      "id": "step-1",
+      "title": "Consultation",
+      "description": "We discuss your organization's health needs and requirements"
+    },
+    {
+      "id": "step-2",
+      "title": "Customization",
+      "description": "We design a tailored health program for your organization"
+    },
+    {
+      "id": "step-3",
+      "title": "Implementation",
+      "description": "We execute the health program with on-site or off-site services"
+    },
+    {
+      "id": "step-4",
+      "title": "Follow-up",
+      "description": "We provide ongoing support and health monitoring"
+    }
+  ],
+  "cta": {
+    "title": "Ready to Invest in Your Team's Health?",
+    "description": "Contact us today to discuss how we can help improve your organization's health and wellness.",
+    "primaryButtonText": "Request Quote",
+    "primaryButtonLink": "/contact"
+  },
+  "contact": {
+    "title": "Corporate Inquiries",
+    "description": "For corporate partnerships and bulk inquiries, please contact our corporate team:",
+    "email": "info@primevitalhealth.com",
+    "phone": "+919871245226"
+  },
+  "photoGallery": []
+}
