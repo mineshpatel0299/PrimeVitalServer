@@ -51,7 +51,11 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(
+  express.json({
+    limit: `${Math.max(1, Number.parseInt(process.env.API_JSON_LIMIT_MB || '50', 10))}mb`,
+  })
+);
 app.options(/.*/, cors(corsOptions));
 
 const readonlyDataDirectory = path.join(__dirname, 'data');
