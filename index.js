@@ -436,25 +436,22 @@ app.delete('/api/blog/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Start the server
-const server = app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  const server = app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
 
-// Handle server errors
-server.on('error', (err) => {
-  console.error('Failed to start server or server error:', err.message);
-  process.exit(1); // Exit the process if the server fails to start or encounters a critical error
-});
+  server.on('error', (err) => {
+    console.error('Failed to start server or server error:', err.message);
+  });
 
-// Handle unhandled exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Unhandled Exception:', err);
-  process.exit(1); // Exit with a failure code
-});
+  process.on('uncaughtException', (err) => {
+    console.error('Unhandled Exception:', err);
+  });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Do not exit here, as it might be a minor issue. Log and monitor.
-});
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+}
