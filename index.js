@@ -52,7 +52,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
-app.options('*', cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 const readonlyDataDirectory = path.join(__dirname, 'data');
 const runtimeDataDirectory = process.env.RUNTIME_DATA_DIR
@@ -81,10 +81,12 @@ fs.mkdir(uploadsDirectory, { recursive: true }).catch((error) => {
   console.error('Failed to ensure uploads directory exists:', error);
 });
 
+const MAX_UPLOAD_MB = Number.parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB || '25', 10);
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB per file
+    fileSize: Math.max(1, MAX_UPLOAD_MB) * 1024 * 1024,
   },
 });
 
@@ -279,27 +281,33 @@ app.put('/api/corporate', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/uploads/corporate', requireAdmin, upload.single('asset'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded.' });
-  }
+app.post('/api/uploads/corporate', requireAdmin, (req, res, next) => {
+  upload.single('asset')(req, res, async (uploadError) => {
+    if (uploadError) {
+      return next(uploadError);
+    }
 
-  try {
-    const mimeType = req.file.mimetype || 'application/octet-stream';
-    const base64 = req.file.buffer.toString('base64');
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
 
-    res.status(201).json({
-      path: dataUrl,
-      filename: req.file.originalname,
-      mimeType,
-      size: req.file.size,
-      message: 'Image encoded successfully.',
-    });
-  } catch (error) {
-    console.error('Error processing uploaded asset:', error);
-    res.status(500).json({ error: 'Failed to process uploaded asset.' });
-  }
+    try {
+      const mimeType = req.file.mimetype || 'application/octet-stream';
+      const base64 = req.file.buffer.toString('base64');
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+
+      res.status(201).json({
+        path: dataUrl,
+        filename: req.file.originalname,
+        mimeType,
+        size: req.file.size,
+        message: 'Image encoded successfully.',
+      });
+    } catch (error) {
+      console.error('Error processing uploaded asset:', error);
+      res.status(500).json({ error: 'Failed to process uploaded asset.' });
+    }
+  });
 });
 
 const getStoredCategories = (data) => {
@@ -455,3 +463,17 @@ if (process.env.VERCEL) {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   });
 }
+
+app.use((error, _req, res, _next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res
+        .status(400)
+        .json({ error: `File exceeds the maximum allowed size of ${Math.max(1, MAX_UPLOAD_MB)}MB.` });
+    }
+    return res.status(400).json({ error: `Upload failed: ${error.code}` });
+  }
+
+  console.error('Unhandled error middleware caught:', error);
+  return res.status(500).json({ error: 'Unexpected server error.' });
+});
