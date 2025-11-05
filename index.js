@@ -8,10 +8,16 @@ const multer = require('multer');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const port = process.env.PORT || 5001; 
+const port = process.env.PORT || 5001;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const JWT_SECRET = process.env.JWT_SECRET || 'primevitals-secret';
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+const CONTACT_RECIPIENTS = (process.env.CONTACT_RECIPIENTS || 'info@primevitalhealthcarelab.com')
+  .split(',')
+  .map((recipient) => recipient.trim())
+  .filter(Boolean);
 
 const defaultAllowedOrigins = [
   'https://www.primevitalhealthcarelab.com',
@@ -117,15 +123,19 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
+if (!EMAIL_USER || !EMAIL_PASS) {
+  console.warn('Email credentials are not fully configured.');
+}
+
 const transporter = nodemailer.createTransport({
-  service: 'gmail', 
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, 
-    pass: process.env.EMAIL_PASS, 
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
   },
 });
 
-console.log('Nodemailer transporter configured with user:', process.env.EMAIL_USER);
+console.log('Nodemailer transporter configured with user:', EMAIL_USER);
 // console.log('Nodemailer transporter configured with pass:', process.env.EMAIL_PASS ? '********' : 'NOT SET'); 
 
 app.post('/api/contact', async (req, res) => {
@@ -139,9 +149,10 @@ app.post('/api/contact', async (req, res) => {
 
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: 'info@primevitalhealthcarelab.com', 
+      from: EMAIL_USER,
+      to: CONTACT_RECIPIENTS,
       subject: `Contact Form Submission: ${subject}`,
+      replyTo: email,
       html: `
         <h2>Contact Form Submission</h2>
         <p><strong>Name:</strong> ${firstName} ${lastName}</p>
@@ -153,7 +164,10 @@ app.post('/api/contact', async (req, res) => {
       `,
     };
 
-    console.log('Attempting to send email with options:', mailOptions);
+    console.log('Attempting to send email with options:', {
+      ...mailOptions,
+      html: '[omitted]',
+    });
     const info = await transporter.sendMail(mailOptions);
     console.log('Email sent: %s', info.messageId);
     res.status(200).json({ message: 'Message sent successfully!' });
