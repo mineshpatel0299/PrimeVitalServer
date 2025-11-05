@@ -161,6 +161,11 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'All required fields must be filled.' });
   }
 
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    console.error('Email credentials are missing; cannot dispatch contact form email.');
+    return res.status(500).json({ error: 'Email service is not configured.' });
+  }
+
   if (!CONTACT_RECIPIENTS_HEADER) {
     console.error('No contact recipients configured; cannot send contact form email.');
     return res.status(500).json({ error: 'Contact email recipients not configured.' });
