@@ -131,7 +131,9 @@ if (!EMAIL_USER || !EMAIL_PASS) {
 }
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: EMAIL_USER,
     pass: EMAIL_PASS,
@@ -140,6 +142,15 @@ const transporter = nodemailer.createTransport({
 
 console.log('Nodemailer transporter configured with user:', EMAIL_USER);
 // console.log('Nodemailer transporter configured with pass:', process.env.EMAIL_PASS ? '********' : 'NOT SET'); 
+
+transporter
+  .verify()
+  .then(() => {
+    console.log('Email transporter connection verified.');
+  })
+  .catch((error) => {
+    console.error('Email transporter verification failed:', error.message);
+  });
 
 app.post('/api/contact', async (req, res) => {
   console.log('Received contact form submission.');
