@@ -1,11 +1,13 @@
-require('dotenv').config({ path: './.env.local' });
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env.local') });
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 const fs = require('fs').promises;
-const path = require('path');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
+const cloudinary = require('cloudinary').v2;
+const { Readable } = require('stream');
 
 const app = express();
 const port = process.env.PORT || 5001;
@@ -20,6 +22,24 @@ const CONTACT_RECIPIENTS = (process.env.CONTACT_RECIPIENTS || 'info@primevitalhe
   .filter(Boolean);
 const CONTACT_RECIPIENTS_HEADER =
   CONTACT_RECIPIENTS.length > 1 ? CONTACT_RECIPIENTS.join(', ') : CONTACT_RECIPIENTS[0] || '';
+const CLOUDINARY_CLOUD_NAME = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+const CLOUDINARY_API_KEY = (process.env.CLOUDINARY_API_KEY || '').trim();
+const CLOUDINARY_API_SECRET = (process.env.CLOUDINARY_API_SECRET || '').trim();
+const CLOUDINARY_UPLOAD_FOLDER = (process.env.CLOUDINARY_UPLOAD_FOLDER || '').trim();
+
+const cloudinaryConfigured =
+  CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET;
+
+if (cloudinaryConfigured) {
+  cloudinary.config({
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET,
+  });
+  console.log('Cloudinary configured with cloud name:', CLOUDINARY_CLOUD_NAME);
+} else {
+  console.warn('Cloudinary credentials are not fully configured. Uploads will fail.');
+}
 
 const defaultAllowedOrigins = [
   'https://www.primevitalhealthcarelab.com',
@@ -296,20 +316,65 @@ app.post('/api/uploads/corporate', requireAdmin, (req, res, next) => {
     }
 
     try {
-      const mimeType = req.file.mimetype || 'application/octet-stream';
-      const base64 = req.file.buffer.toString('base64');
-      const dataUrl = `data:${mimeType};base64,${base64}`;
+      if (!cloudinaryConfigured) {
+        console.error('Cloudinary configuration missing. Cannot upload asset.');
+        return res.status(500).json({ error: 'Image upload service not configured.' });
+      }
 
-      res.status(201).json({
-        path: dataUrl,
-        filename: req.file.originalname,
-        mimeType,
-        size: req.file.size,
-        message: 'Image encoded successfully.',
+      const mimeType = req.file.mimetype || 'application/octet-stream';
+      const uploadOptions = {
+        folder: CLOUDINARY_UPLOAD_FOLDER || undefined,
+        resource_type: 'auto',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+      };
+
+      const bufferToStream = (buffer) =>
+        new Readable({
+          read() {
+            this.push(buffer);
+            this.push(null);
+          },
+        });
+
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(result);
+        });
+
+        bufferToStream(req.file.buffer).pipe(uploadStream);
       });
+
+      const responsePayload = {
+        url: uploadResult.secure_url || uploadResult.url,
+        publicId: uploadResult.public_id,
+        assetId: uploadResult.asset_id,
+        bytes: uploadResult.bytes,
+        format: uploadResult.format,
+        mimeType: uploadResult.resource_type === 'image' && uploadResult.format
+          ? `image/${uploadResult.format}`
+          : mimeType,
+        filename: req.file.originalname,
+        message: 'Image uploaded successfully.',
+      };
+
+      // Maintain backwards compatibility for clients expecting "path"
+      responsePayload.path = responsePayload.url;
+
+      res.status(201).json(responsePayload);
     } catch (error) {
+      const cloudinaryErrorMessage =
+        error?.response?.body?.error?.message ||
+        error?.error?.message ||
+        error?.message ||
+        'Failed to process uploaded asset.';
       console.error('Error processing uploaded asset:', error);
-      res.status(500).json({ error: 'Failed to process uploaded asset.' });
+      res.status(500).json({ error: `Failed to process uploaded asset: ${cloudinaryErrorMessage}` });
     }
   });
 });
@@ -321,9 +386,18 @@ const getStoredCategories = (data) => {
   return data.categories.filter((category) => typeof category === 'string' && category.trim().length > 0);
 };
 
+const normaliseCategory = (category) =>
+  typeof category === 'string' ? category.trim() : '';
+
 const getResponseCategories = (data) => {
-  const stored = getStoredCategories(data);
-  const unique = [...new Set(stored)];
+  const stored = getStoredCategories(data)
+    .map(normaliseCategory)
+    .filter(
+      (category) =>
+        category &&
+        category.toLowerCase() !== 'all posts'
+    );
+  const unique = [...new Set(stored.map((category) => category.trim()))];
   return ['All Posts', ...unique];
 };
 
