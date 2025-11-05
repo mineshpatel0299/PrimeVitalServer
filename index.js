@@ -13,12 +13,36 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const JWT_SECRET = process.env.JWT_SECRET || 'primevitals-secret';
 
+const defaultAllowedOrigins = [
+  'https://www.primevitalhealthcarelab.com',
+  'https://primevitalhealthcarelab.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
 
-app.use(cors({
-  origin: 'https://www.primevitalhealthcarelab.com',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(
+  new Set([...defaultAllowedOrigins, ...envAllowedOrigins])
+);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 const dataDirectory = path.join(__dirname, 'data');
