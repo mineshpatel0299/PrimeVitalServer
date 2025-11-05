@@ -18,6 +18,8 @@ const CONTACT_RECIPIENTS = (process.env.CONTACT_RECIPIENTS || 'info@primevitalhe
   .split(',')
   .map((recipient) => recipient.trim())
   .filter(Boolean);
+const CONTACT_RECIPIENTS_HEADER =
+  CONTACT_RECIPIENTS.length > 1 ? CONTACT_RECIPIENTS.join(', ') : CONTACT_RECIPIENTS[0] || '';
 
 const defaultAllowedOrigins = [
   'https://www.primevitalhealthcarelab.com',
@@ -148,10 +150,15 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'All required fields must be filled.' });
   }
 
+  if (!CONTACT_RECIPIENTS_HEADER) {
+    console.error('No contact recipients configured; cannot send contact form email.');
+    return res.status(500).json({ error: 'Contact email recipients not configured.' });
+  }
+
   try {
     const mailOptions = {
       from: EMAIL_USER,
-      to: CONTACT_RECIPIENTS,
+      to: CONTACT_RECIPIENTS_HEADER,
       subject: `Contact Form Submission: ${subject}`,
       replyTo: email,
       html: `
@@ -177,7 +184,10 @@ app.post('/api/contact', async (req, res) => {
     if (error.response) {
       console.error('Nodemailer response:', error.response);
     }
-    res.status(500).json({ error: 'Failed to send message.' });
+    res.status(500).json({
+      error: 'Failed to send message.',
+      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
+    });
   }
 });
 
