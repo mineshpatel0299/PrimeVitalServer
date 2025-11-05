@@ -22,6 +22,7 @@ const CONTACT_RECIPIENTS = (process.env.CONTACT_RECIPIENTS || 'info@primevitalhe
 const defaultAllowedOrigins = [
   'https://www.primevitalhealthcarelab.com',
   'https://primevitalhealthcarelab.com',
+  'https://prime-vital-server.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
 ];
