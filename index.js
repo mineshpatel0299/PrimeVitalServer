@@ -52,10 +52,29 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.options('*', cors(corsOptions));
 
-const dataDirectory = path.join(__dirname, 'data');
-const corporateDataPath = path.join(dataDirectory, 'corporate.json');
-const blogDataPath = path.join(dataDirectory, 'blog.json');
+const readonlyDataDirectory = path.join(__dirname, 'data');
+const runtimeDataDirectory = process.env.RUNTIME_DATA_DIR
+  ? path.resolve(process.env.RUNTIME_DATA_DIR)
+  : process.env.VERCEL
+    ? path.join('/tmp', 'primevitals', 'data')
+    : readonlyDataDirectory;
+
+const ensureRuntimeDataDir = async () => {
+  try {
+    await fs.mkdir(runtimeDataDirectory, { recursive: true });
+  } catch (error) {
+    console.error('Failed to ensure runtime data directory exists:', error);
+  }
+};
+
+ensureRuntimeDataDir();
+
+const resolveDataFilePath = (fileName) => path.join(runtimeDataDirectory, fileName);
+
+const corporateDataPath = resolveDataFilePath('corporate.json');
+const blogDataPath = resolveDataFilePath('blog.json');
 const uploadsDirectory = path.join(__dirname, 'uploads');
 
 fs.mkdir(uploadsDirectory, { recursive: true }).catch((error) => {
@@ -75,6 +94,19 @@ const readDataFile = async (filePath) => {
     return JSON.parse(raw);
   } catch (error) {
     if (error.code === 'ENOENT') {
+      // Attempt to seed from readonly copy if available
+      try {
+        const fileName = path.basename(filePath);
+        const readonlyPath = path.join(readonlyDataDirectory, fileName);
+        const raw = await fs.readFile(readonlyPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        await writeDataFile(filePath, parsed);
+        return parsed;
+      } catch (seedError) {
+        if (seedError.code !== 'ENOENT') {
+          console.warn(`Failed to seed ${filePath} from readonly data:`, seedError.message);
+        }
+      }
       return null;
     }
     throw error;
