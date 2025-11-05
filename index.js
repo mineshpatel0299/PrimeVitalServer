@@ -62,24 +62,12 @@ fs.mkdir(uploadsDirectory, { recursive: true }).catch((error) => {
   console.error('Failed to ensure uploads directory exists:', error);
 });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsDirectory);
-  },
-  filename: (_req, file, cb) => {
-    const timestamp = Date.now();
-    const randomSuffix = Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname) || '';
-    const baseName = path
-      .basename(file.originalname, ext)
-      .replace(/\s+/g, '-')
-      .replace(/[^a-zA-Z0-9-_]/g, '')
-      .toLowerCase();
-    cb(null, `${baseName || 'asset'}-${timestamp}-${randomSuffix}${ext.toLowerCase()}`);
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
   },
 });
-
-const upload = multer({ storage });
 
 const readDataFile = async (filePath) => {
   try {
@@ -259,18 +247,27 @@ app.put('/api/corporate', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/uploads/corporate', requireAdmin, upload.single('asset'), (req, res) => {
-  // Temporarily bypassing actual file saving to diagnose 500 error on Vercel.
-  // Serverless environments often have read-only file systems.
+app.post('/api/uploads/corporate', requireAdmin, upload.single('asset'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
 
-  // For now, we'll just return a dummy path.
-  // In a real-world scenario, you would integrate with a cloud storage service here (e.g., AWS S3, Cloudinary).
-  const relativePath = `/uploads/${req.file.filename}`; // Still use filename if available for consistency in response
-  console.log(`File upload received: ${req.file.originalname}. Storing to local disk is likely failing on Vercel.`);
-  res.status(201).json({ path: relativePath, message: 'File upload received, but not persistently saved due to serverless environment limitations.' });
+  try {
+    const mimeType = req.file.mimetype || 'application/octet-stream';
+    const base64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    res.status(201).json({
+      path: dataUrl,
+      filename: req.file.originalname,
+      mimeType,
+      size: req.file.size,
+      message: 'Image encoded successfully.',
+    });
+  } catch (error) {
+    console.error('Error processing uploaded asset:', error);
+    res.status(500).json({ error: 'Failed to process uploaded asset.' });
+  }
 });
 
 const getStoredCategories = (data) => {
